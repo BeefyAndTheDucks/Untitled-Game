@@ -19,6 +19,8 @@ public class PlayerHealthManager : MonoBehaviour
     public int heartAmount = 9;
     int currentHeartAmount;
 
+    public int healTime = 4;
+
     public Sprite heart;
     public Sprite heartCracked;
 
@@ -26,8 +28,25 @@ public class PlayerHealthManager : MonoBehaviour
 
     public FirstPersonController character;
 
+    Rigidbody rb;
+
+    Vector3 vel;
+    float yvel;
+    private int healthToLoose = 0;
+
+    private int cooldown = 0;
+
+    [HideInInspector] public bool alive = true;
+
     void Start()
     {
+        rb = character.gameObject.GetComponent<Rigidbody>();
+
+        character.landEvent += OnLand;
+
+        vel = rb.velocity;
+        yvel = vel.y;
+
         currentHeartAmount = heartAmount;
         
         for (int i = 0; i < heartAmount; i++)
@@ -35,25 +54,57 @@ public class PlayerHealthManager : MonoBehaviour
             hearts[i] = Instantiate(healthPrefab, healthTransform);
         }
 
-        StartCoroutine(nameof(TestHealth));
+        StartCoroutine(nameof(MainLoop));
+    }
+
+    void FixedUpdate()
+    {
+        vel = rb.velocity;
+        yvel = vel.y;
+
+        if (yvel <= -10.0f && cooldown <= 0)
+        {
+            cooldown = 30;
+            healthToLoose++;
+        }
+
+        if (cooldown > 0)
+        {
+            cooldown--;
+        }
+    }
+
+    void OnLand()
+    {
+        for (int i = 0; i < healthToLoose; i++)
+        {
+            currentHeartAmount--;
+            
+            RefreshHearts();
+            healthToLoose--;
+        }
     }
 
     IEnumerator GameOver()
     {
-        yield return new WaitForSeconds(0.5f);
-        Image gameOverImage = gameOverGameObject.GetComponent<Image>();
-        gameOverImage.color = new Color32(255, 255, 255, 0);
-        gameOverGameObject.SetActive(true);
-        
-        Cursor.lockState = CursorLockMode.None;
-        character.playerCanMove = false;
-        character.cameraCanMove = false;
-        character.enableHeadBob = false;
-        
-        for (int i = 0; i < tweenToAlpha; i += tweenSpeed)
+        if (alive)
         {
-            gameOverImage.color = new Color32(255, 255, 255, (byte)i);
-            yield return new WaitForSeconds(0.01f);
+            alive = false;
+            Cursor.lockState = CursorLockMode.None;
+            character.playerCanMove = false;
+            character.cameraCanMove = false;
+            character.enableHeadBob = false;
+        
+            yield return new WaitForSeconds(0.5f);
+            Image gameOverImage = gameOverGameObject.GetComponent<Image>();
+            gameOverImage.color = new Color32(255, 255, 255, 0);
+            gameOverGameObject.SetActive(true);
+
+            for (int i = 0; i < tweenToAlpha; i += tweenSpeed)
+            {
+                gameOverImage.color = new Color32(255, 255, 255, (byte)i);
+                yield return new WaitForSeconds(0.01f);
+            }
         }
     }
 
@@ -65,9 +116,11 @@ public class PlayerHealthManager : MonoBehaviour
         character.enableHeadBob = true;
         
         Debug.Log("Respawn");
+        alive = true;
         RefillHearts();
         currentHeartAmount = heartAmount;
         gameOverGameObject.SetActive(false);
+        StartCoroutine(nameof(MainLoop));
 
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
@@ -80,13 +133,11 @@ public class PlayerHealthManager : MonoBehaviour
         }
     }
 
-    public void LoseHealth()
+    public void RefreshHearts()
     {
-        currentHeartAmount--;
-        
         RefillHearts();
 
-        for (int i = 0; i < heartAmount - currentHeartAmount; i++)
+        for (int i = 0; i < heartAmount - currentHeartAmount && i < heartAmount; i++)
         {
             hearts[i].GetComponent<Image>().sprite = heartCracked;
         }
@@ -96,16 +147,42 @@ public class PlayerHealthManager : MonoBehaviour
             StartCoroutine(nameof(GameOver));
         }
     }
-
-    IEnumerator TestHealth()
+    
+    IEnumerator MainLoop()
     {
-        yield return new WaitForSeconds(2);
-        Debug.Log("Starting");
-
-        for (int i = 0; i < heartAmount; i++)
+        IEnumerator VoidDamageCoroutine = VoidDamage();
+        StartCoroutine(VoidDamageCoroutine);
+        
+        while (alive)
         {
-            LoseHealth();
-            yield return new WaitForSeconds(0.25f);
+            if (!(currentHeartAmount >= heartAmount))
+            {
+                currentHeartAmount++;
+                RefreshHearts();
+            }
+
+            yield return new WaitForSeconds(healTime);
+        }
+        
+        StopCoroutine(VoidDamageCoroutine);
+    }
+
+    IEnumerator VoidDamage()
+    {
+        while (alive)
+        {
+            if (character.transform.position.y < -5)
+            {
+                while (currentHeartAmount > 0)
+                {
+                    currentHeartAmount--;
+                    RefreshHearts();
+                    
+                    yield return new WaitForSeconds(0.25f);
+                }
+            }
+
+            yield return new WaitForFixedUpdate();
         }
     }
 }

@@ -97,6 +97,8 @@ public class FirstPersonController : MonoBehaviour
     public bool enableJump = true;
     public KeyCode jumpKey = KeyCode.Space;
     public float jumpPower = 5f;
+    [HideInInspector]
+    public bool jumping = false;
 
     // Internal Variables
     private bool isGrounded = false;
@@ -130,6 +132,10 @@ public class FirstPersonController : MonoBehaviour
     private float timer = 0;
 
     #endregion
+    
+    public delegate void LandDelegate();
+
+    public event LandDelegate landEvent;
 
     private void Awake()
     {
@@ -452,6 +458,8 @@ public class FirstPersonController : MonoBehaviour
         {
             Debug.DrawRay(origin, direction * distance, Color.red);
             isGrounded = true;
+            jumping = false;
+            landEvent();
         }
         else
         {
@@ -466,6 +474,7 @@ public class FirstPersonController : MonoBehaviour
         {
             rb.AddForce(0f, jumpPower, 0f, ForceMode.Impulse);
             isGrounded = false;
+            jumping = true;
         }
 
         // When crouched and using toggle system, will uncrouch for a jump
