@@ -150,8 +150,8 @@ public class PlayerHealthManager : MonoBehaviour
     
     IEnumerator MainLoop()
     {
-        IEnumerator VoidDamageCoroutine = VoidDamage();
-        StartCoroutine(VoidDamageCoroutine);
+        IEnumerator voidDamageCoroutine = VoidDamage();
+        StartCoroutine(voidDamageCoroutine);
         
         while (alive)
         {
@@ -164,14 +164,14 @@ public class PlayerHealthManager : MonoBehaviour
             yield return new WaitForSeconds(healTime);
         }
         
-        StopCoroutine(VoidDamageCoroutine);
+        StopCoroutine(voidDamageCoroutine);
     }
 
     IEnumerator VoidDamage()
     {
         while (alive)
         {
-            if (character.transform.position.y < -5)
+            if (character.transform.position.y < -60)
             {
                 while (currentHeartAmount > 0)
                 {
